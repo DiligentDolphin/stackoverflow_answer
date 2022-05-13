@@ -32,11 +32,6 @@ def _join(path, *paths):
     return os.path.normpath(os.path.join(path, *paths))
 
 
-def join(root, file_list):
-    """Join root path to file_list"""
-    return [_join(root, x) for x in file_list]
-
-
 def file_filter(subdir, pattern=None):
     """Filter files match glob pattern in subdir"""
     all_files = os.listdir(subdir)
@@ -74,15 +69,6 @@ def load(io, **kwargs):
     return pd.read_csv(io, **kwargs)
 
 
-def loads(fp, **kwargs):
-    """wrapper to load from multiple files
-
-    :fp: list of full_path to csv file
-    """
-    for f in fp:
-        yield load(f, **kwargs)
-
-
 def to_timestamp(s):
     """Convert string to datetime stamp
 
@@ -93,37 +79,6 @@ def to_timestamp(s):
     datetime module construct directly.
     """
     return pd.to_datetime(s)
-
-
-def make_multi_index(root, files, kwargs_read_csv):
-    """Main loop for concat csv files from each Folder
-
-    Jobs done here:
-    - construct index for pd.concat()
-    - return concated DataFrame
-
-    :root: The root dir of files, in this case is path1, path2
-    :files: The filenames, filter in advance
-    :kwargs_read_csv: kwargs passed to pd.read_csv, store in dict
-    """
-
-    # construct index of concated DataFrame: Here I prefer to includes
-    # (root, filename, datetime) pairs as concated DataFrame's index,
-    # thus you may decide to use which of them later.
-    #
-    # The MultiIndex would have 3 levels:
-    # - The root dir, represented by last part
-    # - the filename
-    # - the datetime information
-    len_files = len(files)
-    last_dir = os.path.split(root)[-1]
-    datestamp_list = [to_timestamp(x) for x in files]
-    mi = pd.MultiIndex.from_tuples(
-        zip([last_dir] * len_files, files, datestamp_list),  # manual boardcast
-        names=["root", "file", "date"],
-    )
-
-    return mi
 
 
 def json_serialization(obj, ensure_ascii=False):
@@ -293,35 +248,6 @@ def _compare_df_parse_general(df_new, df_old):
     return result_frame
 
 
-def _compare_df_parse_same(df_new, df_old, df_diff):
-    """If the frame are same in shape, index, columns, parse it in following format:
-    Column:
-    Index:
-    new_value:
-    old_value:"""
-    for (column_name, series) in df_diff.iteritems():
-        _diff_series_new = 0
-
-
-def _compare_df(df_new, df_old):
-    df_new_column = df_new.columns
-    df_new_index = df_new.index
-    df_new_shape = df_new.shape
-    df_old_column = df_old.columns
-    df_old_index = df_old.index
-    df_old_shape = df_old.shape
-
-    same_shape = bool(df_new_shape == df_old_shape)
-    same_column = bool(df_new_column == df_old_column)
-    same_index = bool(df_new_index == df_old_index)
-
-    ## same shape / columns / index
-    if same_column and same_index and same_shape:
-        # direct compare
-        df_diff = df_new == df_old
-        parser = _compare_df_parse_same(df_new, df_old, df_diff)
-
-
 def null_df(df):
     """make a DataFrame filled with NA but has same shape"""
     values = np.empty(shape=df.shape)
@@ -428,13 +354,10 @@ def main(path_new, path_old, pattern, kwargs_read_csv=None):
             logger.info(f"Compared {i}/{total} files, current is {filename!r}.")
             yield (filename, ts), result
 
-
     result = list(zip(*wrapper()))
     list_of_series = result[1]
     keys = result[0]
-    concat_result = pd.concat(
-        list_of_series, keys=keys
-    )
+    concat_result = pd.concat(list_of_series, keys=keys)
 
     return concat_result
 
