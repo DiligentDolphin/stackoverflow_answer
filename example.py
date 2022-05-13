@@ -322,6 +322,12 @@ def _compare_df(df_new, df_old):
         parser = _compare_df_parse_same(df_new, df_old, df_diff)
 
 
+def null_df(df):
+    """make a DataFrame filled with NA but has same shape"""
+    values = np.empty(shape=df.shape)
+    return pd.DataFrame(values, index=df.index, columns=df.columns)
+
+
 def compare_file(
     path_new: PathLike,
     path_old: PathLike,
@@ -356,12 +362,16 @@ def compare_file(
     elif exists_new:
         ## only exists in path_new
         logger.warning(exists_new)
-        ret = exists_new
+        df_new = load(fp_new, **kwargs_read_csv)
+        df_old = null_df(df_new)
+        ret = _compare_df_parse_general(df_new, df_old)
 
     elif exists_old:
         ## only exists in path_old
         logger.warning(exists_old)
-        ret = exists_old
+        df_old = load(fp_old, **kwargs_read_csv)
+        df_new = null_df(df_old)
+        ret = _compare_df_parse_general(df_new, df_old)
 
     else:
         ## not exists everywhere
