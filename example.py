@@ -6,19 +6,36 @@ import pandas as pd
 
 def file_filter(subdir, pattern=None):
     """Filter files match glob pattern in subdir"""
-    join = lambda x, *args: os.path.normpath(os.path.join(x, *args))
     all_files = os.listdir(subdir)
     # filter return a list of filename match pattern,
     # but not includes subdir
     match_files = fnmatch.filter(all_files, pattern)
-    # append subdir
-    match_full_path = [join(subdir, x) for x in match_files]
-    return match_files, match_full_path
+    return match_files
+
+
+def join(root, file_list):
+    """Join root path to file_list"""
+    _join = lambda x, *args: os.path.normpath(os.path.join(x, *args))
+    return [_join(root, x) for x in file_list]
 
 
 def load(io, *, **kwargs):
-    """Load csv using pd.read_csv"""
+    """Load csv using pd.read_csv
+    
+    You may includes other jobs about load here, e.g.:
+    - string strip whitespace
+    - convert string to number
+    """
     return pd.read_csv(io, **kwargs)
+
+
+def loads(fp, *, **kwargs):
+    """wrapper to load from multiple files
+
+    :fp: list of full_path to csv file
+    """
+    for f in fp:
+        yield load(f, **kwargs)
 
 
 def to_timestamp(s):
@@ -33,67 +50,64 @@ def to_timestamp(s):
     return pd.to_datetime(s)
     
 
-def concat():
-    """Concat dataframes
+def concat(root, files, kwargs_read_csv):
+    """Main loop for concat csv files from each Folder
 
-    Index:
-    In each versionFolder, your csv file has datetime info in their
-    filename, convert them to timestamp using function `to_timestamp`
+    Jobs done here:
+    - construct index for pd.concat()
+    - return concated DataFrame
 
-    Frame:
-    using function `load` to load csv file to dataframes
+    :root: The root dir of files, in this case is path1, path2
+    :files: The filenames, filter in advance
+    :kwargs_read_csv: kwargs passed to pd.read_csv, store in dict
     """
     
+    # construct index of concated DataFrame: Here I prefer to includes
+    # (root, filename, datetime) pairs as concated DataFrame's index,
+    # thus you may decide to use which of them later.
+    # 
+    # The MultiIndex would have 3 levels:
+    # - The root dir, represented by last part
+    # - the filename
+    # - the datetime information
+    len_files = len(files)
+    last_dir = os.path.split(root)[-1]
+    datestamp_list = [to_timestamp(x) for x in files]
+    mi = pd.MultiIndex.from_tuples(
+        zip(
+            [last_dir] * len_files,  # manual boardcast
+            files,
+            datestamp_list
+        ),
+        names=['root', 'file', 'date']
+    )
+
+    # concat
+    full_path = join(root, files)
+    dfs = pd.concat(
+        loads(full_path, **kwargs_read_csv),
+        index=mi,
+    )
+    return dfs
+
 
 def main():
     """Main code"""
-    # filter files
-    path_new = r""
-    path_old = r""
+
+    # parameter, maybe later pass-in as arguments
+    path_new = r"C:\\Users\\Bilal\\Python\\Task1\\NewVersionFiles\\"
+    path_old = r"C:\\Users\\Bilal\\Python\\Task1\\OlderVersionFiles\\"
     pattern = "*.csv"           # glob pattern for fnmatch to filter
-    files_new, fps_new = file_filter(path_new, pattern)
-    files_old, fps_old = file_filter(path_old, pattern)
 
-    # convert filenames to timestamp
-    ts_new = list(map(to_timestamp, files_new))
-    ts_old = list(map(to_timestamp, files_old))
+    # filter files
+    files_new = file_filter(path_new, pattern)
+    files_old = file_filter(path_old, pattern)
 
-    # convert DatetimeIndex
-    di_new = pd.DatetimeIndex(ts_new, name='date')
-    di_old = pd.DatetimeIndex(ts_old, name='date')
-    
-    # load csv
+    # load csv and concat
     read_csv__kwargs = {'index_col': None, 'header': None}
-    dfs_new = pd.concat(
-        (load(x, **read_csv__kwargs) for x in fps_new),
-        index=di_new,
-        ignore_index=True,
-    )
-    dfs_old = pd.concat(
-        (load(x, **read_csv__kwargs) for x in fps_old),
-        index=di_old,
-        ignore_index=True,
-    )
+    dfs_new = concat(path_new, files_new, read_csv__kwargs)
+    dfs_old = concat(path_old, files_old, read_csv__kwargs)    
 
     # compare
-    # index structure should be like this
-    #    nlevel[0]: datetime from your csv filenames
-    # column structure should be same as your first row in csv files
-    #
-    # iter throught both dataframes, using the following structure
-    # rather then nesting for, which resulting n * n loops
-
-    group_new = dfs_new.groupby('date')
-    group_old = dfs_old.groupby('date')
-
-    for (idx_new, subdf_new), (idx_old, subdf_old) in zip(group_new, group_old):
-        # As your description, I assumed your csv files in OlderVersion and
-        # NewVersion has same name, thus:
-        #    idx_new == subdf_new
-        # if this is not the case, provides the relation between them, and
-        # to make them have same index while concat
-
-        # ensure you are comparing same file from two versionFolder
-        assert idx_new == idx_old
-        # add your compare logic here
-        # Here is example, assume first columns in each
+    # use lazy compare method:
+    compare_obj = zip(dfs_new, dfs_old)
