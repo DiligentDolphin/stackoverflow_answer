@@ -282,10 +282,15 @@ def _compare_df_parse_general(df_new, df_old):
             yield ret
 
     # unzip x by: zip(*x)
-    index_value_pair = filter_result(df_join)
-    compare_result = pd.DataFrame.from_records(zip(*index_value_pair)).T
+    index, values = zip(*filter_result(df_join))
+    compare_result = pd.concat(values, keys=index)
 
-    return compare_result
+    compare_result.index.names = ['Index', 'Column', 'Type']
+    compare_result.name = 'Value'
+
+    result_frame = compare_result.unstack('Type')
+
+    return result_frame
 
 
 def _compare_df_parse_same(df_new, df_old, df_diff):
