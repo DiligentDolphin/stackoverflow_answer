@@ -1,5 +1,6 @@
 import os
 import fnmatch
+import logging
 import pandas as pd
 
 
@@ -94,3 +95,5 @@ def main():
 
         # ensure you are comparing same file from two versionFolder
         assert idx_new == idx_old
+        # add your compare logic here
+        # Here is example, assume first columns in each
