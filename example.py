@@ -3,6 +3,23 @@ import fnmatch
 import logging
 import pandas as pd
 
+from typing import (
+    Union,
+    Sequence,
+    Dict,
+    PathLike,
+)
+
+
+
+def _join(path, *paths):
+    return os.path.normpath(os.path.join(path, *paths))
+
+
+def join(root, file_list):
+    """Join root path to file_list"""
+    return [_join(root, x) for x in file_list]
+
 
 def file_filter(subdir, pattern=None):
     """Filter files match glob pattern in subdir"""
@@ -13,10 +30,23 @@ def file_filter(subdir, pattern=None):
     return match_files
 
 
-def join(root, file_list):
-    """Join root path to file_list"""
-    _join = lambda x, *args: os.path.normpath(os.path.join(x, *args))
-    return [_join(root, x) for x in file_list]
+def file_exists(filename, pathname, method=None):
+    """Wrapper of os.path.exists
+    
+    Return bool if method is not 'error' and logging;
+    Raise FileExistsError if method is 'error'.
+    """
+    logger = logging.getLogger(__name__)
+    fp = _join(pathname, filename)
+    exists = os.path.exists(fp)
+    err_msg = f"{filename} not exists in {pathname}"
+    if method == 'error':
+        raise FileExistsError(err_msg)
+    else:
+        logger.warning(err_msg)
+        # pass warning message
+        exists = err_msg
+    return exists
 
 
 def load(io, *, **kwargs):
@@ -50,7 +80,7 @@ def to_timestamp(s):
     return pd.to_datetime(s)
     
 
-def concat(root, files, kwargs_read_csv):
+def make_multi_index(root, files, kwargs_read_csv):
     """Main loop for concat csv files from each Folder
 
     Jobs done here:
@@ -82,32 +112,98 @@ def concat(root, files, kwargs_read_csv):
         names=['root', 'file', 'date']
     )
 
-    # concat
-    full_path = join(root, files)
-    dfs = pd.concat(
-        loads(full_path, **kwargs_read_csv),
-        index=mi,
-    )
-    return dfs
+    return mi
 
+
+def _compare_df_parse_same(df_new, df_old, df_diff):
+    """If the frame are same in shape, index, columns, parse it in following format:
+    Column:
+    Index:
+    new_value:
+    old_value:
+"""
+    for (column_name, series) in df_diff.iteritems():
+        _diff_series_new = 0
+
+
+def _compare_df(df_new, df_old):
+    df_new_column = df_new.columns
+    df_new_index = df_new.index
+    df_new_shape = df_new.shape
+    df_old_column = df_old.columns
+    df_old_index = df_old.index
+    df_old_shape = df_old.shape
+
+    same_shape = bool(df_new_shape == df_old_shape)
+    same_column = bool(df_new_column == df_old_column)
+    same_index = bool(df_new_index == df_old_index)
+    
+    ## same shape / columns / index
+    if (
+        same_column and same_index and same_shape
+    ):
+        # direct compare
+        df_diff = (df_new == df_old)
+        parser = _compare_df_parse_same(df_new, df_old, df_diff)
+                
+
+def compare_file(
+        filename: PathLike,
+        path_new: PathLike,
+        path_old: PathLike,
+        filename_alter: Union(PathLike, None)=None,
+        kwargs_read_csv: Union(Dict, None)=None,
+):
+    """Compare single file from 2 dirs"""
+    logger = logging.getLogger(__name__)
+    ## Exam file exist
+    
+    exists_new = file_exists(filename, path_new)
+    exists_old = file_exists(filename, path_old)
+    all_exists = all(exists_new, exists_old)
+
+    if all_exists:
+        ## do compare
+        pass
+
+    elif exists_new:
+        ## only exists in path_new
+        logger.warning(exists_new)
+        ret = exists_new
+
+    elif exists_old:
+        ## only exists in path_old
+        logger.warning(exists_old)
+        ret = exists_old
+
+    else:
+        ## not exists everywhere
+        err_msg = f"{filename} not exists in both dir"
+        logger.warning(err_msg)
+        ret = err_msg
+
+    return ret
 
 def main():
     """Main code"""
 
-    # parameter, maybe later pass-in as arguments
+    ## parameter, maybe later pass-in as arguments
+
     path_new = r"C:\\Users\\Bilal\\Python\\Task1\\NewVersionFiles\\"
     path_old = r"C:\\Users\\Bilal\\Python\\Task1\\OlderVersionFiles\\"
     pattern = "*.csv"           # glob pattern for fnmatch to filter
 
-    # filter files
+    ## filter files
+
     files_new = file_filter(path_new, pattern)
     files_old = file_filter(path_old, pattern)
 
-    # load csv and concat
+    ## load csv and concat
+    
+    # Since this is a file-to-file compare, and there is a lot files,
+    # there is no need to load all of them at once.
     read_csv__kwargs = {'index_col': None, 'header': None}
-    dfs_new = concat(path_new, files_new, read_csv__kwargs)
-    dfs_old = concat(path_old, files_old, read_csv__kwargs)    
 
     # compare
     # use lazy compare method:
-    compare_obj = zip(dfs_new, dfs_old)
+
