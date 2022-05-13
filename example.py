@@ -1,14 +1,16 @@
-import os
 import fnmatch
+import json
 import logging
-import pandas as pd
+import os
 
-from typing import (
-    Union,
-    Sequence,
-    Dict,
-    PathLike,
-)
+from copy import copy
+from os import PathLike
+from typing import Sequence
+from typing import Union
+from typing import Dict
+from typing import Set
+
+import pandas as pd
 
 
 def _join(path, *paths):
@@ -110,6 +112,72 @@ def make_multi_index(root, files, kwargs_read_csv):
     return mi
 
 
+def json_serialization(obj):
+    """
+    Serialize using json.dumps()
+
+    Note: set()
+    TypeError: Object of type set is not JSON serializable
+        This code only convert the first structure from set to list,
+        if there is nesting element using set, json.dumps raise.
+    """
+    logger = logging.getLogger(__name__)
+    
+    _obj = copy(obj)
+    
+    # Convert Sequence to list, as json.loads return list
+    if isinstance(_obj, (Set, Sequence)):
+        _obj = list(_obj)
+    _str = json.dumps(_obj)
+
+    try:
+        _restore = json.loads(_str)
+        assert _obj == _restore
+    except AssertionError as e:
+        # The serialization is possiably not reversible
+        logger.warning(f"Serialization of {obj} may not be reversible.")
+
+    return _str
+
+
+def standarize_index(index_obj):
+    """
+    standarize MultiIndex by flatten to series
+
+    Here use pd.Index.to_flat_index() to flatten MultiIndex, then use json.dumps()
+    serialize to string
+    """
+    # check is MultiIndex
+    if index_obj.nlevels > 1:
+        _series
+
+
+def standarize_df(df):
+    """
+    standarize MultiIndex by flatten to series
+
+    Here use pd.Index.to_flat_index() to flatten MultiIndex, then use json.dumps()
+    serialize to string
+    """
+    _col_std = standarize_index(df.columns)
+    return
+
+
+def _compare_df_parse_general(df_new, df_old):
+    """General method to compare arbitrarily DataFrame by column and index
+
+    road map:
+    1. standarize MultiIndex by flatten to series
+        Here use pd.Index.to_flat_index() to flatten MultiIndex, then use json.dumps()
+        serialize to string
+    2. reshape 2-D DataFrame to 1-D Series
+        With following pattern: Column, Index, Value
+    3. compare the standarized Series
+    """
+
+    return
+
+
 def _compare_df_parse_same(df_new, df_old, df_diff):
     """If the frame are same in shape, index, columns, parse it in following format:
     Column:
@@ -143,8 +211,8 @@ def compare_file(
     filename: PathLike,
     path_new: PathLike,
     path_old: PathLike,
-    filename_alter: Union(PathLike, None) = None,
-    kwargs_read_csv: Union(Dict, None) = None,
+    filename_alter: Union[PathLike, None] = None,
+    kwargs_read_csv: Union[Dict, None] = None,
 ):
     """Compare single file from 2 dirs"""
     logger = logging.getLogger(__name__)
