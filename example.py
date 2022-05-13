@@ -11,7 +11,6 @@ from typing import (
 )
 
 
-
 def _join(path, *paths):
     return os.path.normpath(os.path.join(path, *paths))
 
@@ -32,7 +31,7 @@ def file_filter(subdir, pattern=None):
 
 def file_exists(filename, pathname, method=None):
     """Wrapper of os.path.exists
-    
+
     Return bool if method is not 'error' and logging;
     Raise FileExistsError if method is 'error'.
     """
@@ -40,7 +39,7 @@ def file_exists(filename, pathname, method=None):
     fp = _join(pathname, filename)
     exists = os.path.exists(fp)
     err_msg = f"{filename} not exists in {pathname}"
-    if method == 'error':
+    if method == "error":
         raise FileExistsError(err_msg)
     else:
         logger.warning(err_msg)
@@ -49,9 +48,9 @@ def file_exists(filename, pathname, method=None):
     return exists
 
 
-def load(io, *, **kwargs):
+def load(io, **kwargs):
     """Load csv using pd.read_csv
-    
+
     You may includes other jobs about load here, e.g.:
     - string strip whitespace
     - convert string to number
@@ -59,7 +58,7 @@ def load(io, *, **kwargs):
     return pd.read_csv(io, **kwargs)
 
 
-def loads(fp, *, **kwargs):
+def loads(fp, **kwargs):
     """wrapper to load from multiple files
 
     :fp: list of full_path to csv file
@@ -70,7 +69,7 @@ def loads(fp, *, **kwargs):
 
 def to_timestamp(s):
     """Convert string to datetime stamp
-    
+
     pd.to_datetime() accept standard ISO datetime string format,
        yyyy-mm-dd hh:mm:ss
     hh:mm:ss is optional.
@@ -78,7 +77,7 @@ def to_timestamp(s):
     datetime module construct directly.
     """
     return pd.to_datetime(s)
-    
+
 
 def make_multi_index(root, files, kwargs_read_csv):
     """Main loop for concat csv files from each Folder
@@ -91,11 +90,11 @@ def make_multi_index(root, files, kwargs_read_csv):
     :files: The filenames, filter in advance
     :kwargs_read_csv: kwargs passed to pd.read_csv, store in dict
     """
-    
+
     # construct index of concated DataFrame: Here I prefer to includes
     # (root, filename, datetime) pairs as concated DataFrame's index,
     # thus you may decide to use which of them later.
-    # 
+    #
     # The MultiIndex would have 3 levels:
     # - The root dir, represented by last part
     # - the filename
@@ -104,12 +103,8 @@ def make_multi_index(root, files, kwargs_read_csv):
     last_dir = os.path.split(root)[-1]
     datestamp_list = [to_timestamp(x) for x in files]
     mi = pd.MultiIndex.from_tuples(
-        zip(
-            [last_dir] * len_files,  # manual boardcast
-            files,
-            datestamp_list
-        ),
-        names=['root', 'file', 'date']
+        zip([last_dir] * len_files, files, datestamp_list),  # manual boardcast
+        names=["root", "file", "date"],
     )
 
     return mi
@@ -120,8 +115,7 @@ def _compare_df_parse_same(df_new, df_old, df_diff):
     Column:
     Index:
     new_value:
-    old_value:
-"""
+    old_value:"""
     for (column_name, series) in df_diff.iteritems():
         _diff_series_new = 0
 
@@ -137,27 +131,25 @@ def _compare_df(df_new, df_old):
     same_shape = bool(df_new_shape == df_old_shape)
     same_column = bool(df_new_column == df_old_column)
     same_index = bool(df_new_index == df_old_index)
-    
+
     ## same shape / columns / index
-    if (
-        same_column and same_index and same_shape
-    ):
+    if same_column and same_index and same_shape:
         # direct compare
-        df_diff = (df_new == df_old)
+        df_diff = df_new == df_old
         parser = _compare_df_parse_same(df_new, df_old, df_diff)
-                
+
 
 def compare_file(
-        filename: PathLike,
-        path_new: PathLike,
-        path_old: PathLike,
-        filename_alter: Union(PathLike, None)=None,
-        kwargs_read_csv: Union(Dict, None)=None,
+    filename: PathLike,
+    path_new: PathLike,
+    path_old: PathLike,
+    filename_alter: Union(PathLike, None) = None,
+    kwargs_read_csv: Union(Dict, None) = None,
 ):
     """Compare single file from 2 dirs"""
     logger = logging.getLogger(__name__)
     ## Exam file exist
-    
+
     exists_new = file_exists(filename, path_new)
     exists_old = file_exists(filename, path_old)
     all_exists = all(exists_new, exists_old)
@@ -184,6 +176,7 @@ def compare_file(
 
     return ret
 
+
 def main():
     """Main code"""
 
@@ -191,7 +184,7 @@ def main():
 
     path_new = r"C:\\Users\\Bilal\\Python\\Task1\\NewVersionFiles\\"
     path_old = r"C:\\Users\\Bilal\\Python\\Task1\\OlderVersionFiles\\"
-    pattern = "*.csv"           # glob pattern for fnmatch to filter
+    pattern = "*.csv"  # glob pattern for fnmatch to filter
 
     ## filter files
 
@@ -199,11 +192,10 @@ def main():
     files_old = file_filter(path_old, pattern)
 
     ## load csv and concat
-    
+
     # Since this is a file-to-file compare, and there is a lot files,
     # there is no need to load all of them at once.
-    read_csv__kwargs = {'index_col': None, 'header': None}
+    read_csv__kwargs = {"index_col": None, "header": None}
 
     # compare
     # use lazy compare method:
-
