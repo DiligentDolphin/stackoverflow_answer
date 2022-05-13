@@ -14,9 +14,9 @@ import pandas as pd
 import numpy as np
 
 
-def set_logging(logfile=None):
+def set_logging(logfile=None, level=logging.INFO):
     """Setting logging for debug"""
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=level)
     logger = logging.getLogger(__name__)
     if logfile:
         try:
@@ -285,10 +285,10 @@ def _compare_df_parse_general(df_new, df_old):
     index, values = zip(*filter_result(df_join))
     compare_result = pd.concat(values, keys=index)
 
-    compare_result.index.names = ['Index', 'Column', 'Type']
-    compare_result.name = 'Value'
+    compare_result.index.names = ["Index", "Column", "Type"]
+    compare_result.name = "Value"
 
-    result_frame = compare_result.unstack('Type')
+    result_frame = compare_result.unstack("Type")
 
     return result_frame
 
@@ -383,8 +383,9 @@ def demo():
     return
 
 
-def main(path_new, path_old, pattern):
+def main(path_new, path_old, pattern, kwargs_read_csv=None):
     """Main code"""
+    logger = logging.getLogger(__name__)
 
     ## filter files
 
@@ -397,13 +398,35 @@ def main(path_new, path_old, pattern):
 
     # Since this is a file-to-file compare, and there is a lot files,
     # there is no need to load all of them at once.
-    read_csv__kwargs = {"index_col": 0, "header": 0}
+    if not kwargs_read_csv:
+        kwargs_read_csv = {"index_col": 0, "header": 0}
 
     # compare
     # use lazy compare method:
 
-    for filename in filenames:
-        compare_file(filename, path_new, path_old)
+    def wrapper():
+        total = len(filenames)
+        for (i, filename) in enumerate(filenames):
+            timestamp = os.path.splitext(filename)[0]
+            ts = to_timestamp(timestamp)
+            result = compare_file(
+                path_new=path_new,
+                path_old=path_old,
+                filename=filename,
+                kwargs_read_csv=kwargs_read_csv,
+            )
+            logger.info(f"Compared {i}/{total} files, current is {filename!r}.")
+            yield (filename, ts), result
+
+
+    result = list(zip(*wrapper()))
+    list_of_series = result[1]
+    keys = result[0]
+    concat_result = pd.concat(
+        list_of_series, keys=keys
+    )
+
+    return concat_result
 
 
 def test_compare_one_file():
@@ -433,7 +456,30 @@ def test_compare_one_file():
     return result
 
 
+def test_multiple_files():
+    """Compare multiple files to verify"""
+    path_new = "dist/NewVersion"
+    path_old = "dist/OldVersion"
+    pattern = "*.csv"
+    kwargs_read_csv = {
+        "index_col": 0,
+        "header": 0,
+    }
+    result_out_path = r"dist/result/compare-one-file.csv"
+
+    result = main(path_new=path_new, path_old=path_old, pattern=pattern)
+
+    try:
+        result.to_csv(result_out_path)
+    except OSError:
+        os.makedirs(os.path.split(result_out_path)[0])
+        result.to_csv(result_out_path)
+
+    return result
+
+
 if __name__ == "__main__":
     set_logging(logfile="dist/log/example-log.txt")
-    test_compare_one_file()
+    # test_compare_one_file()
+    test_multiple_files()
     pass
