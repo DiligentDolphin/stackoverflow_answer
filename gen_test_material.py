@@ -52,7 +52,11 @@ def create_write_csv(filename, ascii_uppercase=None):
     df = pd.DataFrame(data, index=index, columns=columns)
 
     ## write disk
-    df.to_csv(filename)
+    try:
+        df.to_csv(filename)
+    except OSError:
+        os.makedirs(os.path.split(filename)[0])
+        df.to_csv(filename)
     return df
 
 
