@@ -9,6 +9,7 @@ from typing import Sequence
 from typing import Union
 from typing import Dict
 from typing import Set
+from numpy import reshape
 
 import pandas as pd
 
@@ -148,8 +149,17 @@ def standarize_index(index_obj):
     serialize to string
     """
     # check is MultiIndex
-    if index_obj.nlevels > 1:
-        _series
+    if index_obj.nlevels == 1:
+        index_1_D = index_obj.copy()
+    else:
+        # flatten Index
+        index_flat = index_obj.to_flat_index()
+        # serialize
+        index_serialized = (json_serialization(o) for o in index_flat)
+        # convert back to 1-D index
+        # apply dtype to 'category' saving storage space
+        index_1_D = pd.Index(index_serialized, dtype='category')
+    return index_1_D
 
 
 def standarize_df(df):
@@ -159,8 +169,24 @@ def standarize_df(df):
     Here use pd.Index.to_flat_index() to flatten MultiIndex, then use json.dumps()
     serialize to string
     """
-    _col_std = standarize_index(df.columns)
-    return
+    _column_std = standarize_index(df.columns)
+    _index_std = standarize_index(df.index)
+    _value = df.values
+
+    # index standarize
+    _index_standarized_df = pd.DataFrame(data=_value, index=_index_std, columns=_column_std)
+
+    # reshape
+    _reshape_df = _index_standarized_df.stack()
+    _reshape_df.index.names = ['index', 'column']
+
+    err_return_type_not_series = (
+        f"Return type of standarize_df is {type(_reshape_df)}, expect pd.Series."
+    )
+    # ensure return Series
+    assert isinstance(_reshape_df, pd.Series), err_return_type_not_series
+
+    return _reshape_df
 
 
 def _compare_df_parse_general(df_new, df_old):
