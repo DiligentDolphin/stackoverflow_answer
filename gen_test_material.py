@@ -9,6 +9,33 @@ def isoformat_date(ts):
     return ts.isoformat().split("T")[0]
 
 
+
+def get_rand_shape(x_min, x_max, y_min, y_max):
+    x = np.random.randint(x_min, x_max)
+    y = np.random.randint(y_min, y_max)
+    return (x, y)
+
+
+def create_random_array(shape=None, random_shape_range=None):
+    """Create random shape float data"""
+    if shape:
+        shape = shape
+    elif random_shape_range:
+        shape = get_rand_shape(*random_shape_range)
+    else:
+        random_shape_range = (55, 76, 8, 14)
+        shape = get_rand_shape(*random_shape_range)
+
+    # create array
+    array = np.ndarray(shape, dtype='float')
+
+    # create value
+    value = np.array([np.random.random() for x in range(array.size)])
+    value = value.reshape(array.shape)
+
+    return value
+
+
 def main(
     kwargs_new_date_range=None,
     kwargs_old_date_range=None,
@@ -18,8 +45,7 @@ def main(
     date_range_old = pd.date_range(**kwargs_old_date_range)
     filenames_new = [f"{isoformat_date(ts)}.csv" for ts in date_range_new]
     filenames_old = [f"{isoformat_date(ts)}.csv" for ts in date_range_old]
-    
-    print(filenames_new)
+
     ## create content for each file
     
     ## write disk
@@ -45,5 +71,9 @@ def test():
     return
 
 
+def tmp_test():
+    data = create_random_array()
+
+
 if __name__ == "__main__":
-    test()
+    tmp_test()
