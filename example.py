@@ -113,7 +113,7 @@ def make_multi_index(root, files, kwargs_read_csv):
     return mi
 
 
-def json_serialization(obj):
+def json_serialization(obj, ensure_ascii=False):
     """
     Serialize using json.dumps()
 
@@ -123,13 +123,13 @@ def json_serialization(obj):
         if there is nesting element using set, json.dumps raise.
     """
     logger = logging.getLogger(__name__)
-    
+
     _obj = copy(obj)
-    
+
     # Convert Sequence to list, as json.loads return list
     if isinstance(_obj, (Set, Sequence)):
         _obj = list(_obj)
-    _str = json.dumps(_obj)
+    _str = json.dumps(_obj, ensure_ascii=ensure_ascii)
 
     try:
         _restore = json.loads(_str)
