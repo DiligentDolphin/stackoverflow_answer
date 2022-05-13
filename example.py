@@ -12,6 +12,7 @@ from typing import Set
 from numpy import reshape
 
 import pandas as pd
+import numpy as np
 
 
 def _join(path, *paths):
@@ -158,27 +159,38 @@ def standarize_index(index_obj):
         index_serialized = (json_serialization(o) for o in index_flat)
         # convert back to 1-D index
         # apply dtype to 'category' saving storage space
-        index_1_D = pd.Index(index_serialized, dtype='category')
+        index_1_D = pd.Index(index_serialized, dtype="category")
     return index_1_D
 
 
-def standarize_df(df):
+def standarize_df(df, name="value"):
     """
     standarize MultiIndex by flatten to series
 
     Here use pd.Index.to_flat_index() to flatten MultiIndex, then use json.dumps()
     serialize to string
     """
-    _column_std = standarize_index(df.columns)
+    # if df already Series, skip convert columns
+    if isinstance(df, pd.Series):
+        _column_std = None
+    else:
+        _column_std = standarize_index(df.columns)
+
     _index_std = standarize_index(df.index)
     _value = df.values
 
     # index standarize
-    _index_standarized_df = pd.DataFrame(data=_value, index=_index_std, columns=_column_std)
+    _index_standarized_df = pd.DataFrame(
+        data=_value, index=_index_std, columns=_column_std
+    )
 
     # reshape
     _reshape_df = _index_standarized_df.stack()
-    _reshape_df.index.names = ['index', 'column']
+    _reshape_df.index.names = ["index", "column"]
+
+    # name the series
+    # pd.merge cannot merge 2 series with no name
+    _reshape_df.name = name
 
     err_return_type_not_series = (
         f"Return type of standarize_df is {type(_reshape_df)}, expect pd.Series."
@@ -200,8 +212,68 @@ def _compare_df_parse_general(df_new, df_old):
         With following pattern: Column, Index, Value
     3. compare the standarized Series
     """
+    logger = logging.getLogger(__name__)
 
-    return
+    df_new_std = standarize_df(df_new)
+    df_old_std = standarize_df(df_old)
+
+    # join, outer method
+    df_join = pd.merge(
+        df_new_std,
+        df_old_std,
+        how="outer",
+        left_index=True,
+        right_index=True,
+        suffixes=("_new", "_old"),
+        indicator="_source",
+    )
+
+    # compare already complete, the rest is filter result
+    # assumption: 
+    #    if new = old, pass silently
+    #    if new only (left_only), report new
+    #    if old only (right_only), report del
+    #    if new <> old, report change
+    
+    def filter_result(df):
+        for (index, value) in df_join.iterrows():
+            index_str, column_str = index
+            value_new, value_old = value[0:2]
+            if value_new == value_old:
+                pass
+            elif value_old is np.NaN and value_new:
+                ret = (index, value)
+                log = (
+                    f"New Value create:\n"
+                    f"   Column: {column_str!r}"
+                    f"   Row: {index_str!r}"
+                    f"   Value: {value_new!r}"
+                )
+            elif value_new is np.NaN and value_old:
+                ret = (index, value)
+                log = (
+                    f"Old Value create:\n"
+                    f"   Column: {column_str!r}"
+                    f"   Row: {index_str!r}"
+                    f"   Value: {value_old!r}"
+                )
+            else:
+                ret = (index, value)
+                log = (
+                    f"Value updated:\n"
+                    f"   Column: {column_str!r}"
+                    f"   Row: {index_str!r}"
+                    f"   NewValue: {value_new!r}"
+                    f"   OldValue: {value_old!r}"
+                )
+            logging.debug(log)
+            yield ret
+
+    # unzip x by: zip(*x)
+    index_value_pair = filter_result(df_join)
+    compare_result = pd.DataFrame.from_records(zip(*index_value_pair)).T
+
+    return compare_result
 
 
 def _compare_df_parse_same(df_new, df_old, df_diff):
