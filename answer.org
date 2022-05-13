@@ -1,20 +1,15 @@
-* Answer
-  
-Please specific your object, your question is not straight, nor the example code you pasted.
+* Your object
+From my understanding, your objectives are:
 
-With my understading, I infer your objectives are:
-
-** Your object
-
-- Compare csv files in 2 version folders, all filenames are same;
+- Compare `csv` files in 2 version folders, all filenames are same;
 - filenames contain date information;
 - For each file:
-  - the first row of csv files is columns title;
+  - the first row of `csv` files is columns title;
   - the rest rows are data to compare;
   - their is no column can be used as an nature index.
 - The program should save result in file rather than print to screen;
 
-* Some reference
+* some reference
 
 ** Filter files by name pattern
 
@@ -24,12 +19,9 @@ Use fnmatch.filter(alist, glob_name_pattern) to return a list of name with some 
 
 return all .csv file in current dir.
 
-** Transfer string to date
+** Transfer string to date (pd.to_dataframe)
 
 You can use pandas general function to convert string or ymd interger to date data.
-
-*** pd.to_dataframe(string)
-
 This general function from pandas accept several sequence arguments as input:
 
 - sequence of int, ordered by "year", "month", "day"
@@ -45,7 +37,6 @@ locale.setlocale(locale.ALL='')
 ** Nested `for...` Loop (causing slow)
 
 When iter over 2 iterable with same size (length), you use a nested `for...` structure, that costs n*n times of loop. There's 574 csv files in each version folder, so it use 574*574 loop, this is main cause of slow.
-
 Instead, use zip() to pair iterable with same size, then iter on the new zip object, this costs n times of loop and save n*(n-1) times from nested loop.
 
 ```
@@ -53,18 +44,4 @@ for old, new in zip(olds, news):
     my_func_to_compare(old, new)  # loop body here
 ```
 
-
 * example code
-
-* other suggest
-  
-** unknown function: nested_dict_pairs_iterator
-
-In your code this function is not explained, so I'm not sure what pair1 and pair2 is.
-
-** editor / IDE
-
-You can use vscode in alter to jupyter notebook, and write python file rather then notebook. There is plugin to read jupyter notebook, but these cultivate a bad coding style, including:
-
-- ambicious variable name like dictionaryObject3/4/5/6...
-- all codes in first level, make variable name collision, code redundant
