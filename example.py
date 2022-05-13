@@ -56,12 +56,11 @@ def file_exists(filename, pathname, method=None):
     fp = _join(pathname, filename)
     exists = os.path.exists(fp)
     err_msg = f"{filename} not exists in {pathname}"
-    if method == "error":
-        raise FileExistsError(err_msg)
-    else:
-        logger.warning(err_msg)
-        # pass warning message
-        exists = err_msg
+    if not exists:
+        if method == "error":
+            raise FileExistsError(err_msg)
+        else:
+            logger.warning(err_msg)
     return exists
 
 
