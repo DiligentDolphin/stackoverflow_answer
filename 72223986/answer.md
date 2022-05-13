@@ -47,3 +47,44 @@ times from nested loop.
 loop body here \`\`\`
 
 # example code
+
+It\'s is quite long go download from github:
+<https://github.com/DiligentDolphin/stackoverflow_answer> and find the
+folder with your quesion id: 72223986
+
+## TL;DR;
+
+-   run \`gen~testmaterial~.py\`, this generate a test material for the
+    \`example.py\`
+-   edit \`example.py\` if you change path in \`gen\` file
+-   locate function \`test~multiplefiles~\`, change path~new~, path~old~
+    to corresponding dir
+-   change the dict \`kwargs~readcsv~\` to pass in the \`pd.read~csv~\`
+    keywords arguments
+-   change variable \`result~outpath~\` to choose compare output csv
+    file path
+-   run \`example.py\`
+
+## Explain
+
+### Compare file to file
+
+I assume your requirement do not includes crossing file compare, so
+there is no need to concat all csv in one dir together then compared to
+the other folder. Instead, compare by filename and found if that name
+also exists in other folder, then compare then in detail.
+
+### Standarize DataFrame
+
+Once you read from csv, reshape all its columns to index by pd.stack,
+thus create a 3-columns fixed DataFrame: (Index, Column, Value), which
+later you can use to compare DataFrame with same Index / Column name but
+not same shape or sequence.
+
+### When File not exist
+
+In gen~testmaterial~, I make both NewVersion and OldVersion dir lacking
+some filenames from each other, to simulate when some version of file
+only exists in one dir. In this case, construct a None-filled DataFrame
+with the same shape, then compare function will return all values as
+diff.
