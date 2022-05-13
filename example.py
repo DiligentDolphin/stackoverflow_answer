@@ -9,10 +9,23 @@ from typing import Sequence
 from typing import Union
 from typing import Dict
 from typing import Set
-from numpy import reshape
 
 import pandas as pd
 import numpy as np
+
+
+def set_logging(logfile=None):
+    """Setting logging for debug"""
+    logging.basicConfig(level=logging.DEBUG)
+    logger = logging.getLogger(__name__)
+    if logfile:
+        try:
+            handler = logging.FileHandler(logfile)
+        except FileNotFoundError:
+            os.makedirs(os.path.split(logfile)[0])
+            handler = logging.FileHandler(logfile)
+    else:
+        handler = logging.StreamHandler()
 
 
 def _join(path, *paths):
@@ -229,12 +242,12 @@ def _compare_df_parse_general(df_new, df_old):
     )
 
     # compare already complete, the rest is filter result
-    # assumption: 
+    # assumption:
     #    if new = old, pass silently
     #    if new only (left_only), report new
     #    if old only (right_only), report del
     #    if new <> old, report change
-    
+
     def filter_result(df):
         for (index, value) in df_join.iterrows():
             index_str, column_str = index
@@ -306,22 +319,34 @@ def _compare_df(df_new, df_old):
 
 
 def compare_file(
-    filename: PathLike,
     path_new: PathLike,
     path_old: PathLike,
+    filename: PathLike,
     filename_alter: Union[PathLike, None] = None,
     kwargs_read_csv: Union[Dict, None] = None,
 ):
     """Compare single file from 2 dirs"""
     logger = logging.getLogger(__name__)
+
+    if not kwargs_read_csv:
+        kwargs_read_csv = {
+            "index_col": 0,
+            "header": 0,
+        }
     ## Exam file exist
 
     exists_new = file_exists(filename, path_new)
     exists_old = file_exists(filename, path_old)
-    all_exists = all(exists_new, exists_old)
+    all_exists = all((exists_new, exists_old))
+
+    fp_new = _join(path_new, filename)
+    fp_old = _join(path_old, filename)
 
     if all_exists:
         ## do compare
+        df_new = load(fp_new, **kwargs_read_csv)
+        df_old = load(fp_old, **kwargs_read_csv)
+        ret = _compare_df_parse_general(df_new, df_old)
         pass
 
     elif exists_new:
@@ -343,25 +368,68 @@ def compare_file(
     return ret
 
 
-def main():
-    """Main code"""
-
+def demo():
     ## parameter, maybe later pass-in as arguments
 
     path_new = r"C:\\Users\\Bilal\\Python\\Task1\\NewVersionFiles\\"
     path_old = r"C:\\Users\\Bilal\\Python\\Task1\\OlderVersionFiles\\"
     pattern = "*.csv"  # glob pattern for fnmatch to filter
 
+    main(path_new, path_old, pattern)
+    return
+
+
+def main(path_new, path_old, pattern):
+    """Main code"""
+
     ## filter files
 
     files_new = file_filter(path_new, pattern)
     files_old = file_filter(path_old, pattern)
 
+    filenames = list(set.union(set(files_new), set(files_old)))
+
     ## load csv and concat
 
     # Since this is a file-to-file compare, and there is a lot files,
     # there is no need to load all of them at once.
-    read_csv__kwargs = {"index_col": None, "header": None}
+    read_csv__kwargs = {"index_col": 0, "header": 0}
 
     # compare
     # use lazy compare method:
+
+    for filename in filenames:
+        compare_file(filename, path_new, path_old)
+
+
+def test_compare_one_file():
+    """Compare one file to verify"""
+    path_new = "dist/NewVersion"
+    path_old = "dist/OldVersion"
+    filename = "2018-12-31.csv"
+    kwargs_read_csv = {
+        "index_col": 0,
+        "header": 0,
+    }
+
+    result = compare_file(
+        path_new=path_new,
+        path_old=path_old,
+        filename=filename,
+        kwargs_read_csv=kwargs_read_csv,
+    )
+
+    result_out_path = r"dist/result/compare-one-file.csv"
+    try:
+        result.to_csv(result_out_path)
+    except OSError:
+        os.makedirs(os.path.split(result_out_path)[0])
+        result.to_csv(result_out_path)
+
+    return result
+
+
+if __name__ == "__main__":
+    set_logging(logfile="dist/log/example-log.txt")
+    test_compare_one_file()
+    pass
