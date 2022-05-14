@@ -1,0 +1,10 @@
+* Title
+  Find difference between a set of csv files in folder A compared to set of csv files in folder B
+
+* Content
+
+There are a number a files that need to be compared for differences in their rows; difference not as in subtraction but as in what values are different for each row of a column. Each file is named with its timestamp in it. All the files have a group of columns that are similar for both groups of files. The groups are labeled OlderVersion and NewVersion with 574 csv files each. The files are named by their timestamp and in the output when one is showing which record is different, I need to display the timestamp for the file along with the information of the rows that are different for each file.
+
+What I have tried to do so far is convert each csv file into a dataframe and then into a dictionary. I cannot print each dictionary since the size exceeds jupyter notebooks displaying capabilities. I have also not managed to integrate the timestamp into the dictionary in any way. I am adding my code below
+
+This code displays results as ('Legal', 1066, 'MC1005-3'), where Legal is the column name, 1066 is the row name and 'MC1005-3 is the value for the row-column, followed by pair 2s ('Legal', 1066, 'MC1005-2') but it is slow and I am not even sure if it's correct. Moreover, it's taking an awfully long time to display all the values that are different. Is there a different approach because I feel like I am doing something wrong. And I can't even get to other columns other than Legal. There are so many fields in the dictionaries that it takes a long time to display all the different values for Legal that it doesn't show anything for other columns.
