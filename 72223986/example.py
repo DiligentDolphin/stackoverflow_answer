@@ -2,16 +2,13 @@ import fnmatch
 import json
 import logging
 import os
-
+import re
 from copy import copy
 from os import PathLike
-from typing import Sequence
-from typing import Union
-from typing import Dict
-from typing import Set
+from typing import Dict, Sequence, Set, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 def set_logging(logfile=None, level=logging.INFO):
@@ -78,7 +75,34 @@ def to_timestamp(s):
     if this is not the case, either convert string, or using
     datetime module construct directly.
     """
-    return pd.to_datetime(s)
+    # add pattern in function to_timestamp(s):
+    # following line is example, you will pass-in s as argument in practise
+    # s = "Timecard-MC1003-1-20220425100254-Reported.csv"
+    # You can test your regex online: https://regex101.com/
+    # Paste the pattern between triple quote (not includes) to website,
+    # Set Regex Option to "gxm": (g)lobal, (m)ultiline, e(x)tended
+    # on left select FLAVOR as Python,
+    # then paste your filenames obtain from os.listdir() to "TEST STRING" region
+    # If all matched region are highlighted, then the regex expression is ok.
+
+    head, ext = os.path.splitext(s)
+    pat = re.compile(
+        r"""
+^
+(?P<client>[\w]*)-             # Timecard
+(?P<legel>[\w]*)-              # MC1003
+(?P<rand_int>[\d]*)?-          # 1, assume optinal
+(?P<timestamp>[\d]{14})-       # timestamp, fixed length 14
+(?P<suffix>.*)?                # Reported, optinal
+$
+        """,
+        re.VERBOSE,
+    )
+    match = re.match(pat, head)
+    timestamp = match.group("timestamp")
+    ts = pd.to_datetime(timestamp)
+
+    return ts
 
 
 def json_serialization(obj, ensure_ascii=False):

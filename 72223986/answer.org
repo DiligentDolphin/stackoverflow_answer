@@ -46,28 +46,43 @@ for old, new in zip(olds, news):
 
 * example code
 
-It's is quite long go download from github:
-https://github.com/DiligentDolphin/stackoverflow_answer
-and find the folder with your quesion id: 72223986
- 
-** TL;DR;
-- run `gen_test_material.py`, this generate a test material for the `example.py`
-- edit `example.py` if you change path in `gen` file
-- locate function `test_multiple_files`, change path_new, path_old to corresponding dir
-- change the dict `kwargs_read_csv` to pass in the `pd.read_csv` keywords arguments
-- change variable `result_out_path` to choose compare output csv file path
-- run `example.py`
+* parse filename
 
-** Explain
+** question
+   all the filenames are not the same. Each file is named by its timestamp along with information about client number and their legal number as such Timecard-MC1003-1-20220425100254-Reported. I am not sure what your code is doing, it's so extensive. For each row of a file that's being compared, I need to display the timestamp i.e filename alongside.
+   
+** answer
+   For how to parse filename and transfer timestamp, please refer to `re` python builtin module:
+   https://docs.python.org/3.10/library/re.html?highlight=re#module-re
+   and use online tool such as https://regex101.com/ to verify your regex expression.
+   Then alter it in function `to_timestamp`
+   An example:
 
-*** Compare file to file
+   import re
+   ...
+   
+   # add pattern in function to_timestamp(s):
+   # following line is example, you will pass-in s as argument in practise
+   s = "Timecard-MC1003-1-20220425100254-Reported.csv"
 
-I assume your requirement do not includes crossing file compare, so there is no need to concat all csv in one dir together then compared to the other folder. Instead, compare by filename and found if that name also exists in other folder, then compare then in detail.
+   head, ext = os.path.splitext(s)
+   pat = rer"""(P?<client>)-(P?<legel>)-(P?<rand_int>)-(P?<timestamp>)-(P?<suffix>)"""
 
-*** Standarize DataFrame
+* Compare missing file
 
-Once you read from csv, reshape all its columns to index by pd.stack, thus create a 3-columns fixed DataFrame: (Index, Column, Value), which later you can use to compare DataFrame with same Index / Column name but not same shape or sequence.
+** question
+   So let's say I have two folders - Folder A and Folder B, with two files in A and one in B. After running the program it should display the following: Folder A had a record in file "FolderA_Timecard-MC1010-19-20220507140122-Reported" with row number 2 that was not present in Folder B. Record is: MC1010-19 21044174 58.55 12341
 
-*** When File not exist
-
-In gen_test_material, I make both NewVersion and OldVersion dir lacking some filenames from each other, to simulate when some version of file only exists in one dir. In this case, construct a None-filled DataFrame with the same shape, then compare function will return all values as diff.
+** answer
+   I think I already considered this situation: File exists only in one side of Version folder. You can transfer it to compare to an empty DataFrame with same shape.
+   As for output result, I am organized it to csv table, includes:
+   - unnamed index: The FileName
+   - unnamed index: Timestamp
+   - Index: Represent Row information
+   - Column: Represent Column information
+   - value_new: Value from New Folder
+   - value_old: Value from Old Folder
+   - _source:
+     - both: exists in both version and number is changed
+     - left_only: exists only in new version
+     - right_only: exists only in old version
